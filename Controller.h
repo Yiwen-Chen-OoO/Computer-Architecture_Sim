@@ -16,7 +16,7 @@ extern void deleteNode(Queue *q, Node *node);
 // CONSTANTS
 static unsigned MAX_WAITING_QUEUE_SIZE = 64;
 static unsigned BLOCK_SIZE = 128; // cache block size
-static unsigned NUM_OF_BANKS = 2; // number of banks
+static unsigned NUM_OF_BANKS = 16; // number of banks
 
 // DRAM Timings
 static unsigned nclks_read = 53;
