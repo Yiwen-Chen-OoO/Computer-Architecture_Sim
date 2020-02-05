@@ -21,6 +21,9 @@ static unsigned NUM_OF_BANKS = 16; // number of banks
 // DRAM Timings
 static unsigned nclks_read = 53;
 static unsigned nclks_write = 53;
+// Bank Conflict Counter
+
+unsigned bankConflict = 0;
 
 // PCM Timings
 // static unsigned nclks_read = 57;
@@ -83,7 +86,16 @@ bool send(Controller *controller, Request *req)
 
     // Decode the memory address
     req->bank_id = ((req->memory_address) >> controller->bank_shift) & controller->bank_mask;
-    
+
+    // Count Bank Conflicts
+    Node *last = controller->waiting_queue->last;
+    if (last != NULL)
+    {
+        if (req->bank_id == last->bank_id)
+        {
+            bankConflict++;
+        }
+    }   
     // Push to queue
     pushToQueue(controller->waiting_queue, req);
 
@@ -146,8 +158,8 @@ void tick(Controller *controller)
         }
         */
 
-       // Implementation Two - First Ready -FCFS
-
+       // Implementation Two - OoO
+       /* 
        Node *first = controller->waiting_queue->first;
 
        for (int i=0;i < (controller->waiting_queue->size);i++)
@@ -173,7 +185,35 @@ void tick(Controller *controller)
             }
 
        }
+        */
 
+
+       // Implementation Three - First Ready -FCFS
+       Node *first = controller->waiting_queue->first;
+
+       for (int i=0;i < (controller->waiting_queue->size);i++)
+       {
+           int target_bank_id = first->bank_id;
+
+            if ((controller->bank_status)[target_bank_id].next_free <= controller->cur_clk)
+            {
+                first->begin_exe = controller->cur_clk;
+                if (first->req_type == READ)
+                {
+                    first->end_exe = first->begin_exe + (uint64_t)nclks_read;
+                }
+                else if (first->req_type == WRITE)
+                {
+                    first->end_exe = first->begin_exe + (uint64_t)nclks_write;
+                }
+                // The target bank is no longer free until this request completes.
+                (controller->bank_status)[target_bank_id].next_free = first->end_exe;
+
+                migrateToQueue(controller->pending_queue, first);
+                deleteNode(controller->waiting_queue, first);
+            }
+
+       }
     }
 }
 
