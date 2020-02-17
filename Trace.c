@@ -1,5 +1,6 @@
 #include "Trace.h"
 
+
 TraceParser *initTraceParser(const char * mem_file)
 {
     TraceParser *trace_parser = (TraceParser *)malloc(sizeof(TraceParser));
@@ -14,13 +15,13 @@ bool getRequest(TraceParser *mem_trace)
 {
     char *line = NULL;
     size_t len = 0;
-    ssize_t read;
+    size_t read;
 
     if ((read = getline(&line, &len, mem_trace->fd)) != -1)
     {
-	char delim[] = " \n";
+	    char delim[] = " \n";
 
-	char *ptr = strtok(line, delim);
+	    char *ptr = strtok(line, delim);
         uint64_t mem_addr = convToUint64(ptr);
 
         ptr = strtok(NULL, delim);

@@ -48,10 +48,15 @@ int main(int argc, const char *argv[])
         ++cycles;
     }
 
+    avgAccessLatency = avgAccessLatency / numReq;
+
     free(controller->bank_status);
     free(controller->waiting_queue);
     free(controller->pending_queue);
     free(controller);
     printf("End Execution Time: ""%"PRIu64"\n", cycles);
-    printf("Bank conflict detected: %d\n",bankConflict);
+    printf("Number of Bank Conflicts: %d\n", bankConflict);
+    printf("Average Access Latency: %d\n", avgAccessLatency);
+    printf("Number of Requests: %d\n", numReq);
+    printf("Number of Banks: %d\n", NUM_OF_BANKS);
 }

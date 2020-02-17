@@ -21,16 +21,14 @@ static unsigned NUM_OF_BANKS = 2; // number of banks
 // DRAM Timings
 static unsigned nclks_read = 53;
 static unsigned nclks_write = 53;
-// Bank Conflict Counter
-
-unsigned bankConflict = 0;
-unsigned AccessLatency = 0;
-unsigned numReq = 0;
-
 
 // PCM Timings
 // static unsigned nclks_read = 57;
 // static unsigned nclks_write = 162;
+
+unsigned avgAccessLatency = 0;
+unsigned bankConflict = 0;
+unsigned numReq = 0;
 
 // Controller definition
 typedef struct Controller
@@ -89,7 +87,7 @@ bool send(Controller *controller, Request *req)
 
     // Decode the memory address
     req->bank_id = ((req->memory_address) >> controller->bank_shift) & controller->bank_mask;
-
+    
     // Count Bank Conflicts
     Node *last = controller->waiting_queue->last;
     if (last != NULL)
@@ -98,9 +96,10 @@ bool send(Controller *controller, Request *req)
         {
             bankConflict++;
         }
-    }   
+    }
 
-    req->clk_enter_queue = controller->cur_clk;
+    // Count Access Latency
+    req->clk_enter = controller->cur_clk;
 
     // Push to queue
     pushToQueue(controller->waiting_queue, req);
@@ -133,13 +132,12 @@ void tick(Controller *controller)
             printf("Begin execution: ""%"PRIu64"\n", first->begin_exe);
             printf("End execution: ""%"PRIu64"\n\n", first->end_exe);
             */
+            numReq++;
             deleteNode(controller->pending_queue, first);
         }
     }
 
     // Step three, find a request to schedule
-    // access latency queue 
-    
     if (controller->waiting_queue->size)
     {
         // Implementation One - FCFS
@@ -161,46 +159,43 @@ void tick(Controller *controller)
             // The target bank is no longer free until this request completes.
             (controller->bank_status)[target_bank_id].next_free = first->end_exe;
 
+            avgAccessLatency += (controller->cur_clk - first->clk_enter);
+
             migrateToQueue(controller->pending_queue, first);
             deleteNode(controller->waiting_queue, first);
         }
-        
-*/
+        */
 
-       // Implementation Two - OoO
-        
-       Node *first = controller->waiting_queue->first;
+        // Implementation Two - OoO
 
-       for (int i=0;i < (controller->waiting_queue->size);i++)
-       {
-           int target_bank_id = first->bank_id;
+         Node *first = controller->waiting_queue->first;
 
-            if ((controller->bank_status)[target_bank_id].next_free <= controller->cur_clk)
-            {
-                first->begin_exe = controller->cur_clk;
-                if (first->req_type == READ)
-                {
-                    first->end_exe = first->begin_exe + (uint64_t)nclks_read;
-                }
-                else if (first->req_type == WRITE)
-                {
-                    first->end_exe = first->begin_exe + (uint64_t)nclks_write;
-                }
-                // The target bank is no longer free until this request completes.
-                (controller->bank_status)[target_bank_id].next_free = first->end_exe;
+         for (int i = 0; i < (controller->waiting_queue->size); i++)
+         {   
+             int target_bank_id = first->bank_id;
 
-                migrateToQueue(controller->pending_queue, first);
-                deleteNode(controller->waiting_queue, first);
-            }
-            Node *firstTemp = first->next;
-            first = firstTemp;
+             if ((controller->bank_status)[target_bank_id].next_free <= controller->cur_clk)
+             {
+                 first->begin_exe = controller->cur_clk;
+                 if (first->req_type == READ)
+                 {
+                     first->end_exe = first->begin_exe + (uint64_t)nclks_read;
+                 }
+                 else if (first->req_type == WRITE)
+                 {
+                     first->end_exe = first->begin_exe + (uint64_t)nclks_write;
+                 }
+                 // The target bank is no longer free until this request completes.
+                 (controller->bank_status)[target_bank_id].next_free = first->end_exe;
 
-       }
-        
+                 migrateToQueue(controller->pending_queue, first);
+                 deleteNode(controller->waiting_queue, first);
+             }
 
-       
+             Node *firstTemp = first->next;
+             first = firstTemp;
+         }
     }
-    
 }
 
 #endif

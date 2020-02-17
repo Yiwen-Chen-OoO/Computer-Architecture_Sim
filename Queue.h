@@ -20,6 +20,8 @@ typedef struct Node
 
     int bank_id; // Which bank the request targets to
 
+    unsigned clk_enter;
+
     // Some timing informations.
     uint64_t begin_exe;
     uint64_t end_exe;
@@ -54,6 +56,7 @@ void pushToQueue(Queue *q, Request *req)
     node->mem_addr = req->memory_address;
     node->req_type = req->req_type;
     node->bank_id = req->bank_id;
+    node->clk_enter = req->clk_enter;
 
     node->prev = NULL;
     node->next = NULL;
@@ -102,6 +105,7 @@ void migrateToQueue(Queue *q, Node *_node)
     node->bank_id = _node->bank_id;
     node->begin_exe = _node->begin_exe;
     node->end_exe = _node->end_exe;
+    node->clk_enter = _node->clk_enter;
 
     node->prev = NULL;
     node->next = NULL;
