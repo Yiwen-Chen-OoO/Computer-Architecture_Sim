@@ -12,7 +12,7 @@ typedef struct Request
     Request_Type req_type;
 
     uint64_t memory_address;
-
+    unsigned clk_enter_queue;
     /* Decoding Info */
     int bank_id; // Which bank it targets to.
 

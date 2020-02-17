@@ -53,4 +53,5 @@ int main(int argc, const char *argv[])
     free(controller->pending_queue);
     free(controller);
     printf("End Execution Time: ""%"PRIu64"\n", cycles);
+    printf("Bank conflict detected: %d\n",bankConflict);
 }
