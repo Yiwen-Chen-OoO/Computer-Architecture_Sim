@@ -31,7 +31,7 @@ int main(int argc, const char *argv[])
 
     bool stall = false;
     bool end = false;
-
+    float avgAccessLatency;
     while (!end || ongoingPendingRequests(controller))
     {
         if (!end && !stall)
@@ -48,7 +48,7 @@ int main(int argc, const char *argv[])
         ++cycles;
     }
 
-    avgAccessLatency = avgAccessLatency / numReq;
+    avgAccessLatency = 1.0* AccessLatency / numReq;
 
     free(controller->bank_status);
     free(controller->waiting_queue);
@@ -56,7 +56,7 @@ int main(int argc, const char *argv[])
     free(controller);
     printf("End Execution Time: ""%"PRIu64"\n", cycles);
     printf("Number of Bank Conflicts: %d\n", bankConflict);
-    printf("Average Access Latency: %d\n", avgAccessLatency);
+    printf("Average Access Latency: %f3\n", avgAccessLatency);
     printf("Number of Requests: %d\n", numReq);
     printf("Number of Banks: %d\n", NUM_OF_BANKS);
 }

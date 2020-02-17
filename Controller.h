@@ -26,7 +26,7 @@ static unsigned nclks_write = 53;
 // static unsigned nclks_read = 57;
 // static unsigned nclks_write = 162;
 
-unsigned avgAccessLatency = 0;
+unsigned AccessLatency = 0;
 unsigned bankConflict = 0;
 unsigned numReq = 0;
 
@@ -141,7 +141,7 @@ void tick(Controller *controller)
     if (controller->waiting_queue->size)
     {
         // Implementation One - FCFS
-        /*
+        
         Node *first = controller->waiting_queue->first;
         int target_bank_id = first->bank_id;
 
@@ -159,16 +159,15 @@ void tick(Controller *controller)
             // The target bank is no longer free until this request completes.
             (controller->bank_status)[target_bank_id].next_free = first->end_exe;
 
-            avgAccessLatency += (controller->cur_clk - first->clk_enter);
+            AccessLatency += (controller->cur_clk - first->clk_enter);
 
             migrateToQueue(controller->pending_queue, first);
             deleteNode(controller->waiting_queue, first);
         }
-        */
-
+        
         // Implementation Two - OoO
-
-         Node *first = controller->waiting_queue->first;
+        /*
+        Node *first = controller->waiting_queue->first;
 
          for (int i = 0; i < (controller->waiting_queue->size); i++)
          {   
@@ -195,6 +194,8 @@ void tick(Controller *controller)
              Node *firstTemp = first->next;
              first = firstTemp;
          }
+
+        */
     }
 }
 
