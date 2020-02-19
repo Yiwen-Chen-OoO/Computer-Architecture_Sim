@@ -8,7 +8,7 @@
 
 typedef struct Bank
 {
-    uint64_t cur_clk; // current memory clock
+    uint64_t cur_clk;// current memory clock
     uint64_t next_free; // the future memory clock that the bank is free
 }Bank;
 

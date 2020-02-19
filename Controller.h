@@ -141,7 +141,7 @@ void tick(Controller *controller)
     if (controller->waiting_queue->size)
     {
         // Implementation One - FCFS
-        
+        /*
         Node *first = controller->waiting_queue->first;
         int target_bank_id = first->bank_id;
 
@@ -164,9 +164,9 @@ void tick(Controller *controller)
             migrateToQueue(controller->pending_queue, first);
             deleteNode(controller->waiting_queue, first);
         }
-        
+        */
         // Implementation Two - OoO
-        /*
+        
         Node *first = controller->waiting_queue->first;
 
          for (int i = 0; i < (controller->waiting_queue->size); i++)
@@ -186,7 +186,7 @@ void tick(Controller *controller)
                  }
                  // The target bank is no longer free until this request completes.
                  (controller->bank_status)[target_bank_id].next_free = first->end_exe;
-
+                 AccessLatency += (controller->cur_clk - first->clk_enter);
                  migrateToQueue(controller->pending_queue, first);
                  deleteNode(controller->waiting_queue, first);
              }
@@ -195,8 +195,8 @@ void tick(Controller *controller)
              first = firstTemp;
          }
 
-        */
-    }
+        
+        }
 }
 
 #endif
