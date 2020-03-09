@@ -90,7 +90,15 @@ bool send(Controller *controller, Request *req)
 
     // Decode the memory address
     req->bank_id = ((req->memory_address) >> controller->bank_shift) & controller->bank_mask;
-    
+    /*
+    Memory Requests are prioritized in the following order:
+
+    1> Non-blacklist applications' requests
+    2> Request hit to a free bank. <FR-FCFS>
+    3> Older requests
+
+
+    */
     // Push to queue
     pushToQueue(controller->waiting_queue, req);
 
