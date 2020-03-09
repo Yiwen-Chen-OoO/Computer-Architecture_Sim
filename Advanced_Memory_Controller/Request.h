@@ -18,7 +18,10 @@ typedef struct Request
     /* Decoding Info */
     int channel_id;
     int bank_id; // Which bank it targets to.
-
+    
+    //Additional
+    int num_req_served;
+    bool blacklist;
 }Request;
 
 #endif
