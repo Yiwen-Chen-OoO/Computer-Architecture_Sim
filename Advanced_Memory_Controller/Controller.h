@@ -6,7 +6,9 @@
 
 // Bank
 extern void initBank(Bank *bank);
-
+// FAIRNESS CALCU
+static bool BLISS = false;
+static bool SHARE = true;
 // Queue operations
 extern Queue* initQueue();
 extern void pushToQueue(Queue *q, Request *req);
@@ -25,7 +27,7 @@ static unsigned nclks_read = 53;
 static unsigned nclks_write = 53;
 
 static unsigned BlackListThreshold = 4;
-static unsigned BlackListCleaning = 1000;
+static unsigned BlackListCleaning = 2000;
 // PCM Timings
 // static unsigned nclks_read = 57;
 // static unsigned nclks_write = 162;
@@ -93,18 +95,39 @@ unsigned ongoingPendingRequests(Controller *controller)
 
 bool send(Controller *controller, Request *req)
 {
-    if (controller->waiting_queue->size == MAX_WAITING_QUEUE_SIZE)
-    {
-        return false;
+    if (~SHARE){
+        if (req->core_id == 0){
+            if (controller->waiting_queue->size == MAX_WAITING_QUEUE_SIZE)
+            {
+                return false;
+            }
+
+            // Decode the memory address
+            req->bank_id = ((req->memory_address) >> controller->bank_shift) & controller->bank_mask;
+        
+            // Push to queue
+            pushToQueue(controller->waiting_queue, req);
+
+            return true;
+        }
+
+    }else{
+            if (controller->waiting_queue->size == MAX_WAITING_QUEUE_SIZE)
+            {
+                return false;
+            }
+
+            // Decode the memory address
+            req->bank_id = ((req->memory_address) >> controller->bank_shift) & controller->bank_mask;
+        
+            // Push to queue
+            pushToQueue(controller->waiting_queue, req);
+
+            return true;
+        
     }
-
-    // Decode the memory address
-    req->bank_id = ((req->memory_address) >> controller->bank_shift) & controller->bank_mask;
- 
-    // Push to queue
-    pushToQueue(controller->waiting_queue, req);
-
-    return true;
+    
+    
 }
 
 void tick(Controller *controller)
@@ -137,63 +160,102 @@ void tick(Controller *controller)
             deleteNode(controller->pending_queue, first);
         }
     }
-
-    // Step three, find a request to schedule
-    if (controller->waiting_queue->size)
+    
+    if (~BLISS){
+        if (controller->waiting_queue->size)
     {
-        // Implementation One - FCFS --> FR-FCFS
+        // Implementation One - FR-FCFS
         Node *first = controller->waiting_queue->first;
-        for (int i = 0; i < controller->waiting_queue->size; i++)
+        for (int i=0;i<(controller->waiting_queue->size);i++)
         {
-            //Dealing with Non-Black List
-            
-            // Request_served Counter 
-            if (first->core_id == controller->last_scheduled){
-                controller->request_served[first->core_id]++;
-            } else {
-                controller->request_served[first->core_id] = 0;
-            }
+            int target_bank_id = first->bank_id;
 
-            // Determine if a core is blocked 
-            // a core would not be blocked agin if alreadt blocked
-            if (controller->request_served[first->core_id] >= BlackListThreshold &&
-                controller->blacklist_until[first->core_id] >= controller->cur_clk){
-                controller->request_served[first->core_id] = 0;
-                controller->blacklist_until[first->core_id] = controller->cur_clk + BlackListCleaning;
-            }
-            //for non blk list
-            if (controller->blacklist_until[first->core_id] <= controller->cur_clk){
-                int target_bank_id = first->bank_id;
-            
-                if ((controller->bank_status)[target_bank_id].next_free <= controller->cur_clk && 
-                    controller->channel_next_free <= controller->cur_clk)
+            if ((controller->bank_status)[target_bank_id].next_free <= controller->cur_clk && 
+                controller->channel_next_free <= controller->cur_clk)
+            {
+                first->begin_exe = controller->cur_clk;
+                if (first->req_type == READ)
                 {
-                    first->begin_exe = controller->cur_clk;
-                    if (first->req_type == READ)
-                    {
-                        first->end_exe = first->begin_exe + (uint64_t)nclks_read;
-                    }
-                    else if (first->req_type == WRITE)
-                    {
-                        first->end_exe = first->begin_exe + (uint64_t)nclks_write;
-                    }
-                    // The target bank is no longer free until this request completes.
-                    (controller->bank_status)[target_bank_id].next_free = first->end_exe;
-                    controller->channel_next_free = controller->cur_clk + nclks_channel;
-                    controller->last_scheduled = first->bank_id;
-
-                    migrateToQueue(controller->pending_queue, first);
-                    deleteNode(controller->waiting_queue, first);
+                    first->end_exe = first->begin_exe + (uint64_t)nclks_read;
                 }
+                else if (first->req_type == WRITE)
+                {
+                    first->end_exe = first->begin_exe + (uint64_t)nclks_write;
+                }
+                // The target bank is no longer free until this request completes.
+                (controller->bank_status)[target_bank_id].next_free = first->end_exe;
+                controller->channel_next_free = controller->cur_clk + nclks_channel;
+
+                migrateToQueue(controller->pending_queue, first);
+                deleteNode(controller->waiting_queue, first);
             }
-            Node *firstTemp = first->next;
-            first = firstTemp;       
-
-
-            
-               
+        }
+        Node *firstTemp = first->next;
+        first = firstTemp;
+        
         }
     }
+    else 
+    {
+        // Step three, BLISS
+        if (controller->waiting_queue->size)
+        {
+            // Implementation One - FCFS --> FR-FCFS
+            Node *first = controller->waiting_queue->first;
+            for (int i = 0; i < controller->waiting_queue->size; i++)
+            {
+                //Dealing with Non-Black List
+                
+                // Request_served Counter 
+                if (first->core_id == controller->last_scheduled){
+                    controller->request_served[first->core_id]++;
+                } else {
+                    controller->request_served[first->core_id] = 0;
+                }
+
+                // Determine if a core is blocked 
+                // a core would not be blocked agin if alreadt blocked
+                if (controller->request_served[first->core_id] >= BlackListThreshold &&
+                    controller->blacklist_until[first->core_id] >= controller->cur_clk)
+                {
+                    controller->request_served[first->core_id] = 0;
+                    controller->blacklist_until[first->core_id] = controller->cur_clk + BlackListCleaning;
+                }
+                //for non blk list
+                if (controller->blacklist_until[first->core_id] <= controller->cur_clk){
+                    int target_bank_id = first->bank_id;
+                
+                    if ((controller->bank_status)[target_bank_id].next_free <= controller->cur_clk && 
+                        controller->channel_next_free <= controller->cur_clk)
+                    {
+                        first->begin_exe = controller->cur_clk;
+                        if (first->req_type == READ)
+                        {
+                            first->end_exe = first->begin_exe + (uint64_t)nclks_read;
+                        }
+                        else if (first->req_type == WRITE)
+                        {
+                            first->end_exe = first->begin_exe + (uint64_t)nclks_write;
+                        }
+                        // The target bank is no longer free until this request completes.
+                        (controller->bank_status)[target_bank_id].next_free = first->end_exe;
+                        controller->channel_next_free = controller->cur_clk + nclks_channel;
+                        controller->last_scheduled = first->bank_id;
+
+                        migrateToQueue(controller->pending_queue, first);
+                        deleteNode(controller->waiting_queue, first);
+                    }
+                }
+                Node *firstTemp = first->next;
+                first = firstTemp;       
+
+
+                
+                
+            }
+        }
+    }
+
 }
 
 #endif
