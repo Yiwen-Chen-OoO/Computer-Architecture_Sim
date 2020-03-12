@@ -50,6 +50,8 @@ typedef struct Controller
     /* For decoding */
     unsigned bank_shift;
     uint64_t bank_mask;
+    int request_served[8];
+    // The controller->request_served[i] represent the i th core
 
 }Controller;
 
@@ -90,15 +92,7 @@ bool send(Controller *controller, Request *req)
 
     // Decode the memory address
     req->bank_id = ((req->memory_address) >> controller->bank_shift) & controller->bank_mask;
-    /*
-    Memory Requests are prioritized in the following order:
-
-    1> Non-blacklist applications' requests
-    2> Request hit to a free bank. <FR-FCFS>
-    3> Older requests
-
-
-    */
+ 
     // Push to queue
     pushToQueue(controller->waiting_queue, req);
 
@@ -139,29 +133,34 @@ void tick(Controller *controller)
     // Step three, find a request to schedule
     if (controller->waiting_queue->size)
     {
-        // Implementation One - FCFS
+        // Implementation One - FCFS --> FR-FCFS
         Node *first = controller->waiting_queue->first;
-        int target_bank_id = first->bank_id;
-
-        if ((controller->bank_status)[target_bank_id].next_free <= controller->cur_clk && 
-            controller->channel_next_free <= controller->cur_clk)
+        for (int i = 0; i < controller->waiting_queue->size; i++)
         {
-            first->begin_exe = controller->cur_clk;
-            if (first->req_type == READ)
-            {
-                first->end_exe = first->begin_exe + (uint64_t)nclks_read;
-            }
-            else if (first->req_type == WRITE)
-            {
-                first->end_exe = first->begin_exe + (uint64_t)nclks_write;
-            }
-            // The target bank is no longer free until this request completes.
-            (controller->bank_status)[target_bank_id].next_free = first->end_exe;
-            controller->channel_next_free = controller->cur_clk + nclks_channel;
+            int target_bank_id = first->bank_id;
 
-            migrateToQueue(controller->pending_queue, first);
-            deleteNode(controller->waiting_queue, first);
-        }
+            if ((controller->bank_status)[target_bank_id].next_free <= controller->cur_clk && 
+                controller->channel_next_free <= controller->cur_clk)
+            {
+                first->begin_exe = controller->cur_clk;
+                if (first->req_type == READ)
+                {
+                    first->end_exe = first->begin_exe + (uint64_t)nclks_read;
+                }
+                else if (first->req_type == WRITE)
+                {
+                    first->end_exe = first->begin_exe + (uint64_t)nclks_write;
+                }
+                // The target bank is no longer free until this request completes.
+                (controller->bank_status)[target_bank_id].next_free = first->end_exe;
+                controller->channel_next_free = controller->cur_clk + nclks_channel;
+
+                migrateToQueue(controller->pending_queue, first);
+                deleteNode(controller->waiting_queue, first);
+            }
+            Node *firstTemp = first->next;
+            first = firstTemp;
+        }   
     }
 }
 

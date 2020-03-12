@@ -19,9 +19,15 @@ typedef struct Request
     int channel_id;
     int bank_id; // Which bank it targets to.
     
-    //Additional
-    int num_req_served;
-    bool blacklist;
+    //Additional Property in core not in 
+    // int num_req_served;
+    //bool blacklist; //threshold NOT defined true if > threshold
+
+    /* 
+    MemSlowDown (min and max)
+    Unfairness 
+    
+    */
 }Request;
 
 #endif
