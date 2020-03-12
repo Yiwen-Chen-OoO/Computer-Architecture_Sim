@@ -24,6 +24,8 @@ static unsigned nclks_channel = 15;
 static unsigned nclks_read = 53;
 static unsigned nclks_write = 53;
 
+static unsigned BlackListThreshold = 4;
+static unsigned BlackListCleaning = 200;
 // PCM Timings
 // static unsigned nclks_read = 57;
 // static unsigned nclks_write = 162;
@@ -50,7 +52,9 @@ typedef struct Controller
     /* For decoding */
     unsigned bank_shift;
     uint64_t bank_mask;
+    int last_scheduled;
     int request_served[8];
+    uint64_t blacklist_until[8];
     // The controller->request_served[i] represent the i th core
 
 }Controller;
@@ -71,6 +75,10 @@ Controller *initController()
 
     controller->bank_shift = log2(BLOCK_SIZE) + log2(NUM_OF_CHANNELS);
     controller->bank_mask = (uint64_t)NUM_OF_BANKS - (uint64_t)1;
+    controller->last_scheduled = 8; // since valid range 0-7
+    for (int i = 0;i<7;i++){
+        controller->request_served[i] = 0;
+    }
 
     return controller;
 }
@@ -137,30 +145,42 @@ void tick(Controller *controller)
         Node *first = controller->waiting_queue->first;
         for (int i = 0; i < controller->waiting_queue->size; i++)
         {
-            int target_bank_id = first->bank_id;
-
-            if ((controller->bank_status)[target_bank_id].next_free <= controller->cur_clk && 
-                controller->channel_next_free <= controller->cur_clk)
-            {
-                first->begin_exe = controller->cur_clk;
-                if (first->req_type == READ)
-                {
-                    first->end_exe = first->begin_exe + (uint64_t)nclks_read;
-                }
-                else if (first->req_type == WRITE)
-                {
-                    first->end_exe = first->begin_exe + (uint64_t)nclks_write;
-                }
-                // The target bank is no longer free until this request completes.
-                (controller->bank_status)[target_bank_id].next_free = first->end_exe;
-                controller->channel_next_free = controller->cur_clk + nclks_channel;
-
-                migrateToQueue(controller->pending_queue, first);
-                deleteNode(controller->waiting_queue, first);
+            if (first->core_id == controller->last_scheduled){
+                controller->request_served[first->core_id]++;
+            } else {
+                controller->request_served[first->core_id] = 0;
             }
-            Node *firstTemp = first->next;
-            first = firstTemp;
-        }   
+
+            if (controller->request_served[first->core_id] >= BlackListThreshold){
+                controller->blacklist_until[first->core_id] = controller->cur_clk + BlackListCleaning;
+            }
+
+            int target_bank_id = first->bank_id;
+            if (controller->blacklist_until[first->core_id] <= controller->cur_clk){//Non BLK List
+                if ((controller->bank_status)[target_bank_id].next_free <= controller->cur_clk && 
+                    controller->channel_next_free <= controller->cur_clk)
+                {
+                    first->begin_exe = controller->cur_clk;
+                    if (first->req_type == READ)
+                    {
+                        first->end_exe = first->begin_exe + (uint64_t)nclks_read;
+                    }
+                    else if (first->req_type == WRITE)
+                    {
+                        first->end_exe = first->begin_exe + (uint64_t)nclks_write;
+                    }
+                    // The target bank is no longer free until this request completes.
+                    (controller->bank_status)[target_bank_id].next_free = first->end_exe;
+                    controller->channel_next_free = controller->cur_clk + nclks_channel;
+
+                    migrateToQueue(controller->pending_queue, first);
+                    controller->last_scheduled = first->bank_id;
+                    deleteNode(controller->waiting_queue, first);
+                }
+                Node *firstTemp = first->next;
+                first = firstTemp;
+            }   
+        }
     }
 }
 

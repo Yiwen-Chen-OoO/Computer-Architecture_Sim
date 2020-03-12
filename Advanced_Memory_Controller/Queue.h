@@ -17,7 +17,7 @@ typedef struct Node
 {
     uint64_t mem_addr;
     Request_Type req_type; // Request type
-
+    int core_id; // The core-id/app-id sends the request.
     int channel_id;
     int bank_id; // Which bank the request targets to
 
@@ -56,7 +56,7 @@ void pushToQueue(Queue *q, Request *req)
     node->req_type = req->req_type;
     node->channel_id = req->channel_id;
     node->bank_id = req->bank_id;
-
+    node->core_id = req->core_id;
     node->prev = NULL;
     node->next = NULL;
 
