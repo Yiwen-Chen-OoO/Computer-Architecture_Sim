@@ -7,8 +7,9 @@
 // Bank
 extern void initBank(Bank *bank);
 // FAIRNESS CALCU
-static bool BLISS = false;
-static bool SHARE = true;
+static bool BLISS = true;
+static bool SHARE = false;
+static int APP = 0;
 // Queue operations
 extern Queue* initQueue();
 extern void pushToQueue(Queue *q, Request *req);
@@ -95,7 +96,7 @@ unsigned ongoingPendingRequests(Controller *controller)
 
 bool send(Controller *controller, Request *req)
 {
-    if (~SHARE){
+    if (SHARE == false){
         if (req->core_id == 0){
             if (controller->waiting_queue->size == MAX_WAITING_QUEUE_SIZE)
             {
@@ -161,38 +162,38 @@ void tick(Controller *controller)
         }
     }
     
-    if (~BLISS){
+    if (BLISS == false){
         if (controller->waiting_queue->size)
-    {
-        // Implementation One - FR-FCFS
-        Node *first = controller->waiting_queue->first;
-        for (int i=0;i<(controller->waiting_queue->size);i++)
         {
-            int target_bank_id = first->bank_id;
-
-            if ((controller->bank_status)[target_bank_id].next_free <= controller->cur_clk && 
-                controller->channel_next_free <= controller->cur_clk)
+            // Implementation One - FR-FCFS
+            Node *first = controller->waiting_queue->first;
+            for (int i=0;i<(controller->waiting_queue->size);i++)
             {
-                first->begin_exe = controller->cur_clk;
-                if (first->req_type == READ)
-                {
-                    first->end_exe = first->begin_exe + (uint64_t)nclks_read;
-                }
-                else if (first->req_type == WRITE)
-                {
-                    first->end_exe = first->begin_exe + (uint64_t)nclks_write;
-                }
-                // The target bank is no longer free until this request completes.
-                (controller->bank_status)[target_bank_id].next_free = first->end_exe;
-                controller->channel_next_free = controller->cur_clk + nclks_channel;
+                int target_bank_id = first->bank_id;
 
-                migrateToQueue(controller->pending_queue, first);
-                deleteNode(controller->waiting_queue, first);
+                if ((controller->bank_status)[target_bank_id].next_free <= controller->cur_clk && 
+                    controller->channel_next_free <= controller->cur_clk)
+                {
+                    first->begin_exe = controller->cur_clk;
+                    if (first->req_type == READ)
+                    {
+                        first->end_exe = first->begin_exe + (uint64_t)nclks_read;
+                    }
+                    else if (first->req_type == WRITE)
+                    {
+                        first->end_exe = first->begin_exe + (uint64_t)nclks_write;
+                    }
+                    // The target bank is no longer free until this request completes.
+                    (controller->bank_status)[target_bank_id].next_free = first->end_exe;
+                    controller->channel_next_free = controller->cur_clk + nclks_channel;
+
+                    migrateToQueue(controller->pending_queue, first);
+                    deleteNode(controller->waiting_queue, first);
+                }
             }
-        }
-        Node *firstTemp = first->next;
-        first = firstTemp;
-        
+            Node *firstTemp = first->next;
+            first = firstTemp;
+            
         }
     }
     else 
