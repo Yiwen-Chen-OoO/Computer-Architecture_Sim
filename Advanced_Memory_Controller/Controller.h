@@ -25,7 +25,7 @@ static unsigned nclks_read = 53;
 static unsigned nclks_write = 53;
 
 static unsigned BlackListThreshold = 4;
-static unsigned BlackListCleaning = 200;
+static unsigned BlackListCleaning = 1000;
 // PCM Timings
 // static unsigned nclks_read = 57;
 // static unsigned nclks_write = 162;
@@ -145,18 +145,26 @@ void tick(Controller *controller)
         Node *first = controller->waiting_queue->first;
         for (int i = 0; i < controller->waiting_queue->size; i++)
         {
+            //Dealing with Non-Black List
+            
+            // Request_served Counter 
             if (first->core_id == controller->last_scheduled){
                 controller->request_served[first->core_id]++;
             } else {
                 controller->request_served[first->core_id] = 0;
             }
 
-            if (controller->request_served[first->core_id] >= BlackListThreshold){
+            // Determine if a core is blocked 
+            // a core would not be blocked agin if alreadt blocked
+            if (controller->request_served[first->core_id] >= BlackListThreshold &&
+                controller->blacklist_until[first->core_id] >= controller->cur_clk){
+                controller->request_served[first->core_id] = 0;
                 controller->blacklist_until[first->core_id] = controller->cur_clk + BlackListCleaning;
             }
-
-            int target_bank_id = first->bank_id;
-            if (controller->blacklist_until[first->core_id] <= controller->cur_clk){//Non BLK List
+            //for non blk list
+            if (controller->blacklist_until[first->core_id] <= controller->cur_clk){
+                int target_bank_id = first->bank_id;
+            
                 if ((controller->bank_status)[target_bank_id].next_free <= controller->cur_clk && 
                     controller->channel_next_free <= controller->cur_clk)
                 {
@@ -172,14 +180,18 @@ void tick(Controller *controller)
                     // The target bank is no longer free until this request completes.
                     (controller->bank_status)[target_bank_id].next_free = first->end_exe;
                     controller->channel_next_free = controller->cur_clk + nclks_channel;
+                    controller->last_scheduled = first->bank_id;
 
                     migrateToQueue(controller->pending_queue, first);
-                    controller->last_scheduled = first->bank_id;
                     deleteNode(controller->waiting_queue, first);
                 }
-                Node *firstTemp = first->next;
-                first = firstTemp;
-            }   
+            }
+            Node *firstTemp = first->next;
+            first = firstTemp;       
+
+
+            
+               
         }
     }
 }
