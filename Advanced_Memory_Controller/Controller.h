@@ -9,7 +9,7 @@ extern void initBank(Bank *bank);
 // FAIRNESS CALCU
 static bool BLISS = true;
 static bool SHARE = false;
-static int APP = 0;
+const int APP = 0;
 // Queue operations
 extern Queue* initQueue();
 extern void pushToQueue(Queue *q, Request *req);
@@ -28,7 +28,7 @@ static unsigned nclks_read = 53;
 static unsigned nclks_write = 53;
 
 static unsigned BlackListThreshold = 4;
-static unsigned BlackListCleaning = 2000;
+static unsigned BlackListCleaning = 1000;
 // PCM Timings
 // static unsigned nclks_read = 57;
 // static unsigned nclks_write = 162;
@@ -97,7 +97,7 @@ unsigned ongoingPendingRequests(Controller *controller)
 bool send(Controller *controller, Request *req)
 {
     if (SHARE == false){
-        if (req->core_id == 0){
+        if (req->core_id == APP){
             if (controller->waiting_queue->size == MAX_WAITING_QUEUE_SIZE)
             {
                 return false;
